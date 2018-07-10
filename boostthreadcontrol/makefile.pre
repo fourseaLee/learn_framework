@@ -1,0 +1,11 @@
+SRC=./*.cpp
+INCLUDE= -I ./
+LIB= -lpthread -lboost_system -lboost_thread
+APP= boost_threadTest
+CFLAG=-std=c++11
+DEBUG=-g
+boost_threadTest:
+	g++ $(CFLAG) $(DEBUG) $(SRC) $(INCLUDE) -o $(APP) $(LIB)   
+clean:
+		rm -rf $(APP)
+
