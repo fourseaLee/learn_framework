@@ -17,7 +17,7 @@ struct UdpTracker:public BaseServer
 
         if (bytes_transferred < 16)
         {
-            std::cerr << time_now_string() << ": UDP message too short (from: "/* << print_endpoint(from)*/ <<") \n";
+            std::cerr << time_now_string() << ": UDP message too short (from: " << print_endpoint(*from) <<") \n";
             return ;
         }
 
@@ -36,7 +36,7 @@ struct UdpTracker:public BaseServer
         switch (action)
         {
             case 0:
-                std::cerr << time_now_string() << ": UDP connect from " /*<< print_endpoint(*from) */<< std::endl;
+                std::cerr << time_now_string() << ": UDP connect from " << print_endpoint(*from) << std::endl;
                 ptr = buffer;
                 detail::write_uint32(0,ptr);
                 detail::write_uint32(transaction_id, ptr);
@@ -45,7 +45,7 @@ struct UdpTracker:public BaseServer
                 if (e)
                     std::cerr << time_now_string() << ": UDP send_to failed. ERROR: " << e.message() << std::endl;
                 else
-                    std::cout << time_now_string() << ": UDP sent response to: "/* << print_endpoint(from)*/ << std::endl;
+                    std::cout << time_now_string() << ": UDP sent response to: " << print_endpoint(*from) << std::endl;
                 break;
             case 1:
                 ++udp_announces_;
@@ -81,7 +81,7 @@ struct UdpTracker:public BaseServer
                 if (e)
                     std::cerr << time_now_string() << ": UDP send_to failed, ERROR: " << e.message() << std::endl;
                 else
-                    std::cerr << time_now_string() << ": UDP sent response: " /*<< print_endpoint(from)*/ << std::endl;
+                    std::cerr << time_now_string() << ": UDP sent response: " << print_endpoint(*from) << std::endl;
             case 2:
                 std::cerr << time_now_string() << ": UDP scrape (ignored) \n" ;
                 break;

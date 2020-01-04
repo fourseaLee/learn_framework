@@ -6,7 +6,7 @@ int main(int argc, char*argv[])
 {
     boost::asio::io_service ios;
     error_code ec;
-    address def_gw ;// = get_default_gateway(ios, "", false, ec);
+    address def_gw  = get_default_gateway(ios, "", false, ec);
     if (ec)
     {
         std::cout << ec.message() << std::endl;
