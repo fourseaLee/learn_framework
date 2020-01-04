@@ -1,10 +1,10 @@
 #include "tracker.h"
-
+#include "util.h"
 using namespace libtorrent;
-struct UdpTraker:public BaseServer
+struct UdpTracker:public BaseServer
 {
-    boost::detail::atomic_count udp_announces_;
-    udp::socket socket_;
+    std::atomic<int> udp_announces_;
+    libtorrent::udp::socket socket_;
     bool abort_;
 
     void onUdpReceive(error_code const& ec, size_t bytes_transferred, udp::endpoint* from, char* buffer, int size)
@@ -17,7 +17,7 @@ struct UdpTraker:public BaseServer
 
         if (bytes_transferred < 16)
         {
-            std::cerr << time_now_string() << ": UDP message too short (from: " << print_endpoint(*from) <<") \n";
+            std::cerr << time_now_string() << ": UDP message too short (from: "/* << print_endpoint(from)*/ <<") \n";
             return ;
         }
 
@@ -36,7 +36,7 @@ struct UdpTraker:public BaseServer
         switch (action)
         {
             case 0:
-                std::cerr << time_now_string() << ": UDP connect from " << print_endpoint(*from) << std::endl;
+                std::cerr << time_now_string() << ": UDP connect from " /*<< print_endpoint(*from) */<< std::endl;
                 ptr = buffer;
                 detail::write_uint32(0,ptr);
                 detail::write_uint32(transaction_id, ptr);
@@ -45,10 +45,10 @@ struct UdpTraker:public BaseServer
                 if (e)
                     std::cerr << time_now_string() << ": UDP send_to failed. ERROR: " << e.message() << std::endl;
                 else
-                    std::cout << time_now_string() << ": UDP sent response to: " << print_endpoint(*from) << std::endl;
+                    std::cout << time_now_string() << ": UDP sent response to: "/* << print_endpoint(from)*/ << std::endl;
                 break;
             case 1:
-                ++udp_announces_++;
+                ++udp_announces_;
                 std::cerr << time_now_string() << ": UDP announce  [" << int(udp_announces_) << "]" << std::endl;
                 ptr = buffer;
                 detail::write_uint32(1, ptr);
@@ -81,7 +81,7 @@ struct UdpTraker:public BaseServer
                 if (e)
                     std::cerr << time_now_string() << ": UDP send_to failed, ERROR: " << e.message() << std::endl;
                 else
-                    std::cerr << time_now_string() << ": UDP sent response: " << print_endpoint(*from) << std::endl;
+                    std::cerr << time_now_string() << ": UDP sent response: " /*<< print_endpoint(from)*/ << std::endl;
             case 2:
                 std::cerr << time_now_string() << ": UDP scrape (ignored) \n" ;
                 break;
@@ -91,15 +91,16 @@ struct UdpTraker:public BaseServer
 
         }
         socket_.async_receive_from(boost::asio::buffer(buffer, size),*from, 0
-                                   , std::bind(&UdpTracker::onUdpReceive, this, _1, _2, from, buffer, size));
+                                   ,std::bind(&UdpTracker::onUdpReceive, this, std::placeholders::_1, std::placeholders::_2, from, buffer, size));
     }
 
     UdpTracker(address iface)
     :udp_announces_(0)
     ,socket_(ios_)
-    ,port_(0)
+    //,port_(0)
     ,abort_(false)
     {
+        port_ = 0;
         error_code ec;
         socket_.open(iface.is_v4() ? udp::v4() : udp::v6(), ec);
 
@@ -116,7 +117,7 @@ struct UdpTraker:public BaseServer
             return;
         }
         
-        port_ = socket.local_endpoint(ec).point();
+        port_ = socket_.local_endpoint(ec).port();
         if(ec)
         {
             std::cerr << "UDP error getting local endpoint of UDP tracker socket: " << ec.message() << std::endl;
@@ -124,7 +125,7 @@ struct UdpTraker:public BaseServer
         }
 
         std::cout << time_now_string() << ": UDP tracker initialized on port " << port_ << std::endl;
-        thread_.reset(new libtorrent::thread(std::bind(&UdpTracker::threadFun, this)));
+        thread_.reset(new std::thread(std::bind(&UdpTracker::threadFun, this)));
     }
 
     void stop()
@@ -155,10 +156,10 @@ struct UdpTraker:public BaseServer
         char buffer[2000];
         error_code ec;
         udp::endpoint from;
-        socket_.asnc_receive_from(
+        socket_.async_receive_from(
             boost::asio::buffer(buffer,sizeof(buffer)), from, 0,
-            , boost::bind(&UdpTracker::onUdpRecieve, this, _1, _2, &from, &buffer[0], sizeof(buffer)));
-            ios_.run(ec);
+            std::bind(&UdpTracker::onUdpReceive, this, std::placeholders::_1,std::placeholders::_2, &from, &buffer[0], sizeof(buffer)));
+        ios_.run(ec);
         if (ec)
         {
             std::cerr << "UDP Error running UDP tracker services: " << ec.message() << std::endl;
@@ -170,3 +171,21 @@ struct UdpTraker:public BaseServer
 };
 
 std::shared_ptr<UdpTracker> s_udp_tracker;
+
+int StartUdpTracker(address iface)
+{
+    s_udp_tracker.reset(new UdpTracker(iface));
+    return s_udp_tracker->port();
+}
+
+int NumUdpAnnounces()
+{
+    if(s_udp_tracker)
+        return s_udp_tracker->numHits();
+    return 0;
+}
+
+void StopUdpTracker()
+{
+    s_udp_tracker.reset();
+}

@@ -12,7 +12,7 @@ set(basic_src  src/tracker.cpp
                src/transfer.cpp 
                src/main.cpp)
 
-set(basic_link_lib pthread torrent glog ssl crypto)
+set(basic_link_lib pthread boost_context torrent-rasterbar glog ssl crypto)
 
 add_executable(torrentlearn ${basic_src})
 target_link_libraries(torrentlearn ${basic_link_lib})

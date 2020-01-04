@@ -1,24 +1,22 @@
 #include "dht.h"
+#include "util.h"
 using namespace libtorrent;
-
 struct DhtServer : public BaseServer
 {
     udp::socket socket_;
     
     DhtServer()
-    : requests_(0)
-    , socket_(ios_)
-    , port_(0)
+    : socket_(ios_)
     {
         error_code ec;
-        socket_.open(upd::v4(), ec);
+        socket_.open(udp::v4(), ec);
         if (ec)
         {
-            std::cerr << "Error opening listent DHT socket: " << ec.message() << std:endl;
+            std::cerr << "Error opening listent DHT socket: " << ec.message() << std::endl;
             return ;
         }
 
-        socket_.bind(udp::endpoint(address_v4::any(),0),ec)
+        socket_.bind(udp::endpoint(address_v4::any(),0),ec);
         if (ec)
         {
             std::cerr << "Error binding DHT socket to  port 0: "  << ec.message() << std::endl;
@@ -32,15 +30,15 @@ struct DhtServer : public BaseServer
             return;
         }
 
-        std::cout << time_now_string() << ": DHT initialized on port " << port_ << std:;endl;
+        std::cout << time_now_string() << ": DHT initialized on port " << port_ << std::endl;
 
-        thread_reset(new libtorrent::thread(std::bind(&DhtServer::ThreadFun, this)));
+        thread_.reset(new std::thread(std::bind(&DhtServer::threadFun, this)));
     }
 
     ~DhtServer()
     {
         socket_.cancel();
-        socket_close();
+        socket_.close();
         if (thread_)
             thread_->join();
     }
@@ -54,7 +52,7 @@ struct DhtServer : public BaseServer
 
     void threadFun()
     {
-        char buffer[2000]
+        char buffer[2000];
         for(;;)
         {
             error_code ec;
@@ -64,7 +62,7 @@ struct DhtServer : public BaseServer
 
             socket_.async_receive_from(
             boost::asio::buffer(buffer, sizeof(buffer)), from, 0,
-            std::bind(&incomingPacket,_1,_2, &bytes_transferred, &ec, &done));
+            std::bind(&incomingPacket, std::placeholders::_1, std::placeholders::_2, &bytes_transferred, &ec, &done));
 
             while(!done)
             {
@@ -99,7 +97,7 @@ std::shared_ptr<DhtServer> s_dht;
 int StartDht()
 {
     s_dht.reset(new DhtServer);
-    return s_dht.port();
+    return s_dht->port();
 }
 
 int NumDhtHits()

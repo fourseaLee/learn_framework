@@ -1,18 +1,15 @@
 #include "peer.h"
-
+#include <boost/predef/other/endian.h>
 using namespace libtorrent;
 
 struct PeerServer: public BaseServer
 {
     tcp::acceptor acceptor_;
-
     PeerServer()
-    : requests_(0)
-    , acceptor_(ios_)
-    , port_(0)
+    : acceptor_(ios_)
     {
         error_code ec;
-        acceptor_.Open(tcp::v4(), ec);
+        acceptor_.open(tcp::v4(), ec);
         if (ec)
         {
             std::cerr << "PEER Error opening peer listen socket: \n" << ec.message() << std::endl;
@@ -40,7 +37,7 @@ struct PeerServer: public BaseServer
         }
 
         std::cout << time_now_string() << ": PEER peer initialized on port " << port_ << std::endl;
-        thread_.reset(new libtorrent::thread(std::bind(PeerServer::threadFun, this)));
+        thread_.reset(new std::thread(std::bind(&PeerServer::threadFun, this)));
     }
 
     ~PeerServer()
@@ -49,7 +46,7 @@ struct PeerServer: public BaseServer
         acceptor_.cancel(ignore);
         acceptor_.close(ignore);
         if (thread_)
-            thread_.join();
+            thread_->join();
     }
 
     static void newConnect(error_code const& ec , error_code* ret, bool* done)
@@ -65,23 +62,24 @@ struct PeerServer: public BaseServer
             error_code ec;
             tcp::endpoint from;
             tcp::socket socket(ios_);
-            condition_variable cond;
+            std::condition_variable cond;
             bool done = false;
 
-            accptor.async_accept(socket, from, std::bind(&new_connection, _1, &ec, &done));
+            acceptor_.async_accept(socket, from, std::bind(&newConnect, std::placeholders::_1, &ec, &done));
             while(!done)
             {
                 ios_.poll_one();
-                ios_reset();
+                ios_.reset();
+
             }
 
-            if (ec == boost::asio::error::operation_aborted
-                ec == boost::asion::error::bad_descriptor)
+            if (ec == boost::asio::error::operation_aborted ||
+                ec == boost::asio::error::bad_descriptor)
                 return ;
 
             if (ec)
             {
-                std::cerr << "PEER Error accepting connection on peer socket: " << ec.message << std::endl;
+                std::cerr << "PEER Error accepting connection on peer socket: " << ec.message() << std::endl;
             }
 
             std::cout << time_now_string() << ": PEER incoming peer connection" << std::endl;
@@ -92,7 +90,7 @@ struct PeerServer: public BaseServer
 };
 
 
-std::share_ptr<PeerServer> s_peer;
+std::shared_ptr<PeerServer> s_peer;
 int StartPeer()
 {
     s_peer.reset(new PeerServer);
