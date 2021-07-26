@@ -16,7 +16,10 @@
 #include <crypto++/hex.h>
 #include <crypto++/osrng.h>
 #include <crypto++/keccak.h>
+#include <crypto++/modes.h>
 #include <sstream>
+#include <iomanip>
+
 using namespace  CryptoPP;
 
 /*ANONYMOUS_NAMESPACE_BEGIN
@@ -27,6 +30,7 @@ NonblockingRng s_globalRNG;
 #endif
 NAMESPACE_END*/
 
+//OFB_Mode<AES>::Encryption s_globalRNG;
 NonblockingRng s_globalRNG;
 RandomNumberGenerator & GlobalRNG()
 {
@@ -148,12 +152,34 @@ int main()
 	(void)hash->TagSize();
 	(void)hash->DigestSize();
 	(void)hash->Restart();
+	std::string msg = "transfer(address,uint256)";
+	byte* data  =(byte*) msg.c_str();
+	hash->Update(data, msg.size());
+	byte data_hash[32];
+	hash->TruncatedFinal(data_hash, 32);
+
+	
+{
+     std::stringstream ss;
+     ss << std::hex;
+
+     for( int i(0) ; i < 32; ++i )
+         ss << std::setw(2) << std::setfill('0') << (int)data_hash[i];
+
+	 std::cout << ss.str() <<std::endl;
+}
+
+
 	int digestSize = -1;
 	HashVerificationFilter verifierFilter(*pHash, nullptr, HashVerificationFilter::HASH_AT_BEGIN, digestSize);
 	PutDecodedDatumInto("a9059cbb2ab09eb219583f4a59a5d0623ade346d962bcd4e46b11da047c9049b", verifierFilter);
 	PutDecodedDatumInto("transfer(address,uint256)", verifierFilter);
-
 	verifierFilter.MessageEnd();
+
+	if (verifierFilter.GetLastResult() == false)
+			std::cout << "verify error" << std::endl;
+	else 
+			std::cout << "verify success" << std::endl;
     return 0;
 
 }
