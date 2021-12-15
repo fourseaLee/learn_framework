@@ -7,6 +7,7 @@ set(CMAKE_BUILD_TYPE "Debug")
 include_directories(./include)
 add_subdirectory(clickhouse-cpp)
 include_directories(clickhouse-cpp)
+include_directories(clickhouse-cpp/contrib)
 
 set(basic_src  src/main.cpp)
 set(basic_link_lib curl pthread mysqlclient event boost_system boost_program_options boost_filesystem glog ssl crypto clickhouse-cpp-lib)

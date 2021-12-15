@@ -33,9 +33,11 @@ using namespace clickhouse;
 */
 
 using namespace clickhouse;
-int main(int argc, char* argv[])
+
+
+void BasicTest()
 {
-    /// Initialize client connection.
+  /// Initialize client connection.
 
     ClientOptions client_opt;
 
@@ -80,5 +82,57 @@ int main(int argc, char* argv[])
 
     /// Delete table.
    // client.Execute("DROP TABLE test.numbers");
+}
+
+void StandardTest()
+{
+	ClientOptions client_opt;
+
+	client_opt.SetUser("default");
+	client_opt.SetHost("192.168.1.27");
+	//  client_opt.SetPort(8123);
+	client_opt.SetDefaultDatabase("wallet_report_prod");
+	client_opt.SetPassword("123456");
+	Client client(client_opt);
+
+	/// Select values inserted in the previous step.
+	std::string sql = "SELECT  DISTINCT `from` from block_number_transaction;";
+	std::vector<std::string> vect_address;
+	client.Select(sql,[&vect_address] (const Block& block)
+	{
+		 for (size_t i = 0; i < block.GetRowCount(); ++i) 
+		 { 
+            auto address_view =  block[0]->As<ColumnString>()->At(i);
+			std::string address(address_view);
+			vect_address.push_back(address);
+         }
+	}
+	);
+	std::cout << "from size:  " << vect_address.size()  << std::endl;
+
+	sql = "SELECT  DISTINCT `to` from block_number_transaction;";
+	client.Select(sql,[&vect_address] (const Block& block)
+	{
+		 for (size_t i = 0; i < block.GetRowCount(); ++i) 
+		 {
+            auto address_view =  block[0]->As<ColumnString>()->At(i);
+			std::string address(address_view);
+			vect_address.push_back(address);
+         }
+	}
+	);
+	std::cout << "total size: "  << vect_address.size() << std::endl;
+
+	for (size_t i = 0; i < vect_address.size(); i++)
+	{
+		std::cout << vect_address[i] << std::endl;
+	}
+	/// Delete table.
+	// client.Execute("DROP TABLE test.numbers");
+
+}
+int main(int argc, char* argv[])
+{
+	StandardTest();
     return 0;
 }
